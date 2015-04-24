@@ -1,6 +1,7 @@
 import sys
 import math
 import scipy
+import random
 import numpy as np
 
 class DecisionTree:
@@ -10,6 +11,7 @@ class DecisionTree:
         self.shape    = []
         self.splitVal = []
         self.labelVal = []
+        self.feature  = np.array([])
         for dd in range( depthIn ):
             self.shape.append( [0] * int( math.pow(2, dd ) ) )
             self.splitVal.append( [0] * int( math.pow(2, dd ) ) )
@@ -72,7 +74,7 @@ class DecisionTree:
         dS = S - S_split
         dS_max, id_max = np.max( dS ), np.argmax( dS )
         if dS_max <= 0.:
-            #return xk[5]
+            return xk[5]
             return 'none'
         x_split = xk[ id_max ]
         return x_split
@@ -106,6 +108,7 @@ class DecisionTree:
         N_total = 0.
         for lbl_id in range( self.N_label ):
             N_total += np.shape( ftrArrList[lbl_id] )[0]
+        if 0. == N_total: return 0.
         p_survival = float( np.shape( ftrArrList[1] )[0] ) / N_total
         return p_survival
  
@@ -118,18 +121,23 @@ class DecisionTree:
         if( self.depth > N_ftr + 1 ):
             print 'Depth of tree is greater than number of features'
             print 'We want to avoid over-fitting!'
-            print 'Exit'
-            sys.exit()
+        #    print 'Exit'
+        #    sys.exit()
 
         newFtrList = ftrArrList[:]
         for layer in self.shape:
             ftrArrList = newFtrList[:]
             newFtrList = []
             layer_id = self.shape.index( layer )
+            if 0 == layer_id%5:
+                print layer_id
             if ( (self.depth - 1) == layer_id):
                 #last layer is output layer -> don't train
                 continue
-            ftr_id   = layer_id #Change this later when looking at RF
+            ftr_id   = int( random.uniform(0,N_ftr) )
+            self.feature = np.concatenate( \
+                                (self.feature, np.array([int(ftr_id)]) ) )
+                     #layer_id #Change this later when looking at RF
 
             for jj in range( int( math.pow(2., layer_id ) ) ):
                 node_id = jj
@@ -141,7 +149,10 @@ class DecisionTree:
                     continue
                 fArr, tmpL = [], np.array([])
                 for lbl_id in range( self.N_label ):
-                    fArr.append( ftrArrList[node_id][lbl_id][:,ftr_id])
+                    if (0,) == np.shape(ftrArrList[node_id][lbl_id]):
+                        fArr.append(ftrArrList[node_id][lbl_id])
+                    else:
+                        fArr.append( ftrArrList[node_id][lbl_id][:,ftr_id])
                     tmpL = np.concatenate( (tmpL, fArr[-1]) )
                 mod_D = len(tmpL)
                 if 0 == mod_D:
@@ -180,7 +191,12 @@ class DecisionTree:
             ftrArrList   = newFtrArrList[:]
             newFtrArrList = []
             layer_id = self.shape.index( layer )
-            ftr_id   = layer_id #Change this later when looking at RF
+            if ( (self.depth - 1) != layer_id):
+                #last layer is output layer -> don't train
+                if 0 == layer_id%5:
+                    print layer_id
+                #ftr_id   = layer_id #Change this later when looking at RF
+                ftr_id   = self.feature[ layer_id ]
             for jj in range( int( math.pow(2., layer_id) ) ):
                 node_id = jj
                 if 0 == np.shape(ftrArrList[node_id])[0]:

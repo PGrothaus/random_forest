@@ -5,29 +5,31 @@ import data_preparation as dataPrep
 trainData = dataPrep.titanic( 'train.csv', labeled = 1 )
 
 print np.shape( trainData[0] )
-#trainData, testData = [ trainData[0][:400,:], trainData[1][:400,:] ], \
-#     [ np.concatenate( (trainData[0][401:,:], trainData[1][401:,:]), axis=0) ]
+trainData, crossValData = [ trainData[0][:300,:], trainData[1][:300,:] ], \
+     [ np.concatenate( (trainData[0][301:,:], trainData[1][301:,:]), axis=0) ]
 
 N_ftr  = 7
-depth  = N_ftr
+depth  = 22
 Nlabel = 2
 
-RF = rforest.DecisionTree( N_ftr, 2 )
+RF = rforest.DecisionTree( depth, 2 )
 RF.train( [trainData] )
 
-#print ''
-#print 'where tree is splitted: ', RF.shape
-#print 'split values: ',           RF.splitVal
-#print 'survival probabilities: ', RF.labelVal
-#print ''
 output = RF.predict_label( trainData )
 misclass  = np.where( output[:,7]==output[:,8], 0, 1 )
 Nmisclass = float( np.sum( misclass ) )
 error     = Nmisclass  / np.shape( misclass )[0]
 precision = ( np.shape( misclass )[0] - Nmisclass ) / np.shape( misclass )[0]
-print 'error and precision on training se: ',error, precision
+print 'error and precision on training set: ',error, precision
 print ''
 
+output = RF.predict_label( crossValData )
+misclass  = np.where( output[:,7]==output[:,8], 0, 1 )
+Nmisclass = float( np.sum( misclass ) )
+error     = Nmisclass  / np.shape( misclass )[0]
+precision = ( np.shape( misclass )[0] - Nmisclass ) / np.shape( misclass )[0]
+print 'error and precision on cross validation set: ',error, precision
+print ''
 
 testData = dataPrep.titanic( 'test.csv', labeled = 0 )
 output = RF.predict_label( testData )
