@@ -114,13 +114,13 @@ class DecisionTree:
  
     def train(self, ftrArrList, NsplitVal = 2500):
         N_ftr = np.shape(ftrArrList[0][0])[1] - 1
-        print 'There are ', self.N_label, ' labels!'
-        if( self.depth < N_ftr ):
-            print 'Depth of tree is smaller than number of features'
-            print 'Only the first ', self.depth, 'features are used'
-        if( self.depth > N_ftr + 1 ):
-            print 'Depth of tree is greater than number of features'
-            print 'We want to avoid over-fitting!'
+        #print 'There are ', self.N_label, ' labels!'
+        #if( self.depth < N_ftr ):
+        #    print 'Depth of tree is smaller than number of features'
+        #    print 'Only the first ', self.depth, 'features are used'
+        #if( self.depth > N_ftr + 1 ):
+        #    print 'Depth of tree is greater than number of features'
+        #    print 'We want to avoid over-fitting!'
         #    print 'Exit'
         #    sys.exit()
 
@@ -129,8 +129,8 @@ class DecisionTree:
             ftrArrList = newFtrList[:]
             newFtrList = []
             layer_id = self.shape.index( layer )
-            if 0 == layer_id%5:
-                print layer_id
+            #if 0 == layer_id%5:
+            #    print layer_id
             if ( (self.depth - 1) == layer_id):
                 #last layer is output layer -> don't train
                 continue
@@ -180,8 +180,8 @@ class DecisionTree:
                                                 self.survival_probability(L1)
                 self.labelVal[layer_id + 1][2 * node_id + 1 ] = \
                                                 self.survival_probability(L2)
-        print ''
-        print 'Tree trained'
+        #print ''
+        #print 'Tree trained'
 
     def predict_label(self, ftrArrList):
         outArr =  np.zeros( (1,np.shape(ftrArrList[0])[1]+1) )
@@ -193,8 +193,8 @@ class DecisionTree:
             layer_id = self.shape.index( layer )
             if ( (self.depth - 1) != layer_id):
                 #last layer is output layer -> don't train
-                if 0 == layer_id%5:
-                    print layer_id
+                #if 0 == layer_id%5:
+                #    print layer_id
                 #ftr_id   = layer_id #Change this later when looking at RF
                 ftr_id   = self.feature[ layer_id ]
             for jj in range( int( math.pow(2., layer_id) ) ):
@@ -226,8 +226,8 @@ class DecisionTree:
                                             layer_id, node_id, ftr_id)
                 newFtrArrList += L1 + L2
 
-        print 'labels predicted'
-        print ''
+        #print 'labels predicted'
+        #print ''
         return outArr
 
 #N_samples = 25
