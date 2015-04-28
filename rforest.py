@@ -134,7 +134,7 @@ class DecisionTree:
             if ( (self.depth - 1) == layer_id):
                 #last layer is output layer -> don't train
                 continue
-            ftr_id   = int( random.uniform(0,N_ftr) )
+            ftr_id   = random.randint(0,N_ftr-1)
             self.feature = np.concatenate( \
                                 (self.feature, np.array([int(ftr_id)]) ) )
                      #layer_id #Change this later when looking at RF

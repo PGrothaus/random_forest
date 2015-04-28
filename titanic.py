@@ -1,16 +1,19 @@
 import numpy as np
 import rforest
 import sys
+import random
 import data_preparation as dataPrep
 import matplotlib.pyplot as plt
 
+np.random.seed( 1 )
+random.seed( 1 )
 def bagging( data, idset):
     out = []
     for lbl in data:
         out.append( lbl[idset,:] )
     return out
 
-trainData = dataPrep.titanic( 'train.csv', labeled = 1 )
+trainData = dataPrep.titanic( 'train.csv', LABELED = True )
 
 #plt.plot( trainData[0][:,1],\
 #           trainData[0][:,2] , 'ro')
@@ -20,20 +23,23 @@ trainData = dataPrep.titanic( 'train.csv', labeled = 1 )
 #sys.exit()
 
 #print np.shape( trainData[0] )
-trainData, crossValData = [ trainData[0][:250,:], trainData[1][:250,:] ], \
-     [ np.concatenate( (trainData[0][251:,:], trainData[1][251:,:]), axis=0) ]
-N_ftr  = 6
+Ntr = 200
+trainData, crossValData = [ trainData[0][:Ntr,:], trainData[1][:Ntr,:] ], \
+   [np.concatenate( (trainData[0][Ntr+1:,:], trainData[1][Ntr+1:,:]), axis=0)]
+
+N_ftr  = 8
 depth  = 20
+Nbag   = 150
 Nlabel = 2
-Ntotal = 5
+Ntotal = 1
 
 finalSurv = np.zeros( 419 )
 for Ntree in range( Ntotal ):
-    if Ntree%5 ==0:
+    if Ntree%10 ==0:
         print Ntree
     for lbl in trainData:
         np.random.shuffle( lbl )
-    idset = np.random.randint( 0, 250, 150 ) 
+    idset = np.random.randint( 0, Ntr, Nbag ) 
     baggedData = bagging(trainData, idset)
     RF = rforest.DecisionTree( depth, 2 )
     RF.train( [baggedData] )
@@ -42,18 +48,20 @@ for Ntree in range( Ntotal ):
     misclass  = np.where( output[:,N_ftr+1]==output[:,N_ftr], 0, 1 )
     Nmisclass = float( np.sum( misclass ) )
     error     = Nmisclass  / np.shape( misclass )[0]
-    precision = ( np.shape( misclass )[0] - Nmisclass ) / np.shape( misclass )[0]
-    print 'error and precision on training set: ',error, precision
+    precision = (np.shape( misclass )[0]-Nmisclass) / np.shape( misclass )[0]
+    print 'error and precision on training set: ', \
+            round(error,2), round(precision,2)
     
     output = RF.predict_label( crossValData )
     misclass  = np.where( output[:,N_ftr+1]==output[:,N_ftr], 0, 1 )
     Nmisclass = float( np.sum( misclass ) )
     error     = Nmisclass  / np.shape( misclass )[0]
     precision = ( np.shape( misclass )[0] - Nmisclass ) / np.shape( misclass )[0]
-    print 'error and precision on cross validation set: ',error, precision
+    print 'error and precision on validati set: ',\
+            round(error,2), round(precision,2)
     print ''
    
-    testData = dataPrep.titanic( 'test.csv', labeled = 0 )
+    testData = dataPrep.titanic( 'test.csv', LABELED = False )
     output = RF.predict_label( testData )
     
     output = zip( output[:,N_ftr], output[:,N_ftr+1] )
