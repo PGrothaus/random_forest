@@ -27,11 +27,11 @@ Ntr = 200
 trainData, crossValData = [ trainData[0][:Ntr,:], trainData[1][:Ntr,:] ], \
    [np.concatenate( (trainData[0][Ntr+1:,:], trainData[1][Ntr+1:,:]), axis=0)]
 
-N_ftr  = 8
-depth  = 20
-Nbag   = 150
+N_ftr  = 10
+depth  = N_ftr+1
+Nbag   = 200
 Nlabel = 2
-Ntotal = 1
+Ntotal = 25
 
 finalSurv = np.zeros( 419 )
 for Ntree in range( Ntotal ):

@@ -197,16 +197,16 @@ def titanic( filename, LABELED = True ):
    
     if LABELED:
         data = np.concatenate( (sex, pclass, age, fare, age**2, fare**2, \
-                                age*fare, family, survival),\
+                                age*fare, family, family*fare, pclass*fare,\
                                 #pclass, sex, age, fare, \
-                                #Nsibsp, Nparch, port, \
-                                #family, title, survival ), 
-                                axis = 1 )
+                                #Nsibsp, Nparch, port,title, \
+                                #family, title,\
+                                survival ),  axis = 1 )
     else:
-        data = np.concatenate( (sex, pclass, age, fare, age**2, fare**2,\
-                                age*fare, family,  \
+        data = np.concatenate( (sex, age, pclass, fare, age**2, fare**2,\
+                                age*fare, family, family*fare, pclass*fare,  \
                                 #pclass, sex, age, fare, \
-                                #Nsibsp, Nparch, port, \
+                                #Nsibsp, Nparch, port,title, \
                                 #family, title,\
                                 pID ), axis = 1 )
 
