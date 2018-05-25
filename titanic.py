@@ -5,84 +5,71 @@ import random
 import data_preparation as dataPrep
 import matplotlib.pyplot as plt
 
-np.random.seed( 1 )
-random.seed( 1 )
-def bagging( data, idset):
-    out = []
-    for lbl in data:
-        out.append( lbl[idset,:] )
-    return out
-
-trainData = dataPrep.titanic( 'train.csv', LABELED = True )
-
-#plt.plot( trainData[0][:,1],\
-#           trainData[0][:,2] , 'ro')
-#plt.plot( trainData[1][:,1]+.2,\
-#           trainData[1][:,2] , 'go')
-#plt.show()
-#sys.exit()
-
-#print np.shape( trainData[0] )
 Ntr = 200
-trainData, crossValData = [ trainData[0][:Ntr,:], trainData[1][:Ntr,:] ], \
-   [np.concatenate( (trainData[0][Ntr+1:,:], trainData[1][Ntr+1:,:]), axis=0)]
-
-N_ftr  = 10
-depth  = N_ftr+1
-Nbag   = 200
+N_ftr = 10
+depth = N_ftr + 1
+Nbag = 200
 Nlabel = 2
 Ntotal = 25
 
-finalSurv = np.zeros( 419 )
-for Ntree in range( Ntotal ):
-    if Ntree%10 ==0:
+def calculate_error(output):
+    n_examples = output.shape[0]
+    prediction = output[:, N_ftr]
+    target = output[:, N_ftr + 1]
+    misclass = np.where(target == prediction, 0, 1)
+    error = np.mean(misclass)
+    precision = 1. - error
+    return error, precision
+
+
+np.random.seed(1)
+random.seed(1)
+
+trainData = dataPrep.titanic('train.csv', LABELED=True)
+trainData  = [trainData[0][:Ntr, :], trainData[1][:Ntr, :]]
+crossValData = [np.concatenate(
+        (trainData[0][Ntr + 1:, :],
+         trainData[1][Ntr + 1:, :]), axis=0)]
+
+
+
+testData = dataPrep.titanic('test.csv', LABELED=False)
+
+finalSurv = np.zeros(419)
+for Ntree in range(Ntotal):
+    if Ntree % 10 == 0:
         print Ntree
     for lbl in trainData:
-        np.random.shuffle( lbl )
-    idset = np.random.randint( 0, Ntr, Nbag ) 
-    baggedData = bagging(trainData, idset)
-    RF = rforest.DecisionTree( depth, 2 )
-    RF.train( [baggedData] )
-    
-    output = RF.predict_label( baggedData )
-    misclass  = np.where( output[:,N_ftr+1]==output[:,N_ftr], 0, 1 )
-    Nmisclass = float( np.sum( misclass ) )
-    error     = Nmisclass  / np.shape( misclass )[0]
-    precision = (np.shape( misclass )[0]-Nmisclass) / np.shape( misclass )[0]
-    print 'error and precision on training set: ', \
-            round(error,2), round(precision,2)
-    
-    output = RF.predict_label( crossValData )
-    misclass  = np.where( output[:,N_ftr+1]==output[:,N_ftr], 0, 1 )
-    Nmisclass = float( np.sum( misclass ) )
-    error     = Nmisclass  / np.shape( misclass )[0]
-    precision = ( np.shape( misclass )[0] - Nmisclass ) / np.shape( misclass )[0]
-    print 'error and precision on validati set: ',\
-            round(error,2), round(precision,2)
-    print ''
-   
-    testData = dataPrep.titanic( 'test.csv', LABELED = False )
-    output = RF.predict_label( testData )
-    
-    output = zip( output[:,N_ftr], output[:,N_ftr+1] )
-    output.sort(key = lambda tup: tup[0] )
-    output  = zip( *output )
-    pId, survival = output
+        np.random.shuffle(lbl)
+    idset = np.random.randint(0, Ntr, Nbag)
+    baggedData = [lbl[idset, :] for lbl in data]
+    RF = rforest.DecisionTree(depth, 2)
+    RF.train(baggedData)
+
+    output = RF.predict_label(baggedData)
+    error, precision = calculate_error(output)
+    print 'error and precision on training set: {}, {}'.format(
+        round(error, 3), round(precision, 3))
+
+    output = RF.predict_label(crossValData)
+    error, precision = calculate_error(output)
+    print 'error and precision on validation set: {}, {}\n'.format(
+        round(error, 3), round(precision, 3))
+
+    output = RF.predict_label(testData)
+    output = zip(output[:, N_ftr], output[:, N_ftr + 1])
+    output.sort(key=lambda tup: tup[0])
+    pId, survival = zip(*output)
 
     finalSurv += survival
 
-finalSurv = 1./Ntotal * finalSurv
+finalSurv = 1. * finalSurv / Ntotal
 
-rr = np.random.uniform(0.,1., 419)
-survival = np.where( finalSurv >= .5, 1, 0 )
-f = open( 'submit.txt', 'w' )
-f.write('PassengerId,Survived\n' )
-f.close()
-for ii in range( np.shape( pId )[0] ):
+survival = np.where(finalSurv >= .5, 1, 0)
+with open('submit.txt', 'w') as f:
+    f.write('PassengerId,Survived\n')
+for ii in range(np.shape(pId)[0]):
     if 0 == ii:
         continue
-    f = open( 'submit.txt', 'a' )
-    f.write(str(int(pId[ii]))+','+str(int(survival[ii]))+'\n')
-    f.close()
-
-
+    with open('submit.txt', 'a') as f:
+        f.write(str(int(pId[ii])) + ',' + str(int(survival[ii])) + '\n')
