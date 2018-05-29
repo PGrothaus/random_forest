@@ -6,7 +6,8 @@ import numpy as np
 
 
 class DecisionTree:
-    def __init__(self, depthIn, NLabelIn):
+    def __init__(self, depthIn, nftr, NLabelIn):
+        self.n_features = nftr
         self.N_label = NLabelIn
         self.depth = depthIn
         self.shape = []
@@ -17,6 +18,7 @@ class DecisionTree:
             self.shape.append([0] * int(math.pow(2, dd)))
             self.splitVal.append([0] * int(math.pow(2, dd)))
             self.labelVal.append([0] * int(math.pow(2, dd)))
+            self.feature.append([0] * int(math.pow(2, dd)))
         self.shape[0][0] = 1
 
     def entropy(self, targetArr, targets):
@@ -42,46 +44,44 @@ class DecisionTree:
         D_1 = yy - D_0
         return D_0, D_1
 
-    def maximise_entropy_gain(self, featureArrList, xk, mod_D):
-        # featureArrList should be a list of featureArr in which
-        # each featureArr a np.array that contains different
-        # feature values, but the same label y
-        S_split = np.zeros(len(xk))
-        S = np.zeros(len(xk))
-        S1, S2 = np.zeros(len(xk)), np.zeros(len(xk))
-        D_0_sum = 0.
-        D_1_sum = 0.
-        D_0_List, D_1_List = [], []
-        for featureArr in featureArrList:
-            D_0, D_1 = self.split_featureArr(featureArr, xk)
-            D_0_List.append(D_0)
-            D_1_List.append(D_1)
-            D_0_sum += D_0
-            D_1_sum += D_1
-            p_i = float(len(featureArr)) / mod_D
-            if p_i > 0.:
-                S -= p_i * math.log(p_i, 2.)
-        for D_0, D_1 in zip(D_0_List, D_1_List):
-            eps = 0.0001
-            p_0 = np.where(D_0_sum == 0., 0., D_0 / (eps + D_0_sum))
-            p_1 = np.where(D_1_sum == 0., 0., D_1 / (eps + D_1_sum))
-            w1 = D_0_sum / mod_D * p_0
-            w2 = D_1_sum / mod_D * p_1
-            p_0 = np.where(p_0 == 0., 1, p_0)
-            p_1 = np.where(p_1 == 0., 1, p_1)
-            S1 -= w1 * np.log2(p_0)
-            S2 -= w2 * np.log2(p_1)
+    def entropy(self, a, b):
+        tot = a + b
+        s1, s2 = 0., 0.
+        if a > 0:
+            a1 = 1. * a / tot
+            s1 = -a1 * math.log(a1, 2.)
+        if b > 0:
+            b1 = 1. * b / tot
+            s2 = - b1 * math.log(b1, 2.)
+        return s1 + s2
 
-        S_split = S1 + S2
-        dS = S - S_split
-        dS_max, id_max = np.max(dS), np.argmax(dS)
-        print 'd entropy', dS_max
-        if dS_max <= 0.001:
-            #return xk[5]
-            print 'np split'
-            return 'none'
-        x_split = xk[id_max]
-        return x_split
+    def maximise_entropy_gain(self, featureArrList, xk, mod_D):
+        alive, dead = featureArrList[0], featureArrList[1]
+        s_t = self.entropy(len(alive), len(dead))
+        tot = len(alive) + len(dead)
+        gain_max = 0.
+        x_best = None
+        for xval in xk:
+            alive_less = len([item for item in alive if item <= xval])
+            alive_greater = len([item for item in alive if item > xval])
+            dead_less = len([item for item in dead if item <= xval])
+            dead_greater = len([item for item in dead if item > xval])
+            p_less = 1. * (alive_less + dead_less) / tot
+            p_greater = 1. * (alive_greater + dead_greater) / tot
+
+            s_less = self.entropy(alive_less, dead_less)
+            s_greater = self.entropy(alive_greater, dead_greater)
+
+            s_x = p_less * s_less + p_greater * s_greater
+
+            gain = s_t - s_x
+            if gain > gain_max:
+                gain_max = gain
+                x_best = xval
+        if gain_max > 0.001:
+            return x_best, gain_max
+        else:
+            return None, None
 
     def split_labeled_data(self, ftrArrList, layer_id, node_id, ftr_id):
         L1, L2 = [], []
@@ -117,77 +117,72 @@ class DecisionTree:
         p_survival = float(np.shape(ftrArrList[1])[0]) / N_total
         return p_survival
 
-    def train(self, ftrArrList, NsplitVal=2500):
+    def train(self, ftrArrList, NsplitVal=25):
         N_ftr = np.shape(ftrArrList[0][0])[1] - 1
-        #print 'There are ', self.N_label, ' labels!'
-        # if( self.depth < N_ftr ):
-        #    print 'Depth of tree is smaller than number of features'
-        #    print 'Only the first ', self.depth, 'features are used'
-        # if( self.depth > N_ftr + 1 ):
-        #    print 'Depth of tree is greater than number of features'
-        #    print 'We want to avoid over-fitting!'
-        #    print 'Exit'
-        #    sys.exit()
-
         newFtrList = ftrArrList[:]
         for layer in self.shape:
             ftrArrList = newFtrList[:]
             newFtrList = []
             layer_id = self.shape.index(layer)
-            # if 0 == layer_id%5:
-            #    print layer_id
             if ((self.depth - 1) == layer_id):
-                # last layer is output layer -> don't train
                 continue
-            ftr_id = layer_id
-            #ftr_id  = random.randint(0,N_ftr-1)
-            self.feature.append(int(ftr_id))
 
-            for jj in range(int(math.pow(2., layer_id))):
-                node_id = jj
+            for node_id in range(int(math.pow(2., layer_id))):
                 if layer_id > 0 \
                         and 0 == self.shape[layer_id - 1][int(node_id / 2)]:
-                    for ii in range(2):
-                        newFtrList.append([])
-                        self.shape[layer_id][node_id] = 0
+                    split_features = [[], []]
+                    for f in split_features:
+                        newFtrList.append(f)
                     continue
                 fArr, tmpL = [], np.array([])
-                for lbl_id in range(self.N_label):
-                    if (0,) == np.shape(ftrArrList[node_id][lbl_id]):
-                        fArr.append(ftrArrList[node_id][lbl_id])
-                    else:
-                        fArr.append(ftrArrList[node_id][lbl_id][:, ftr_id])
-                    tmpL = np.concatenate((tmpL, fArr[-1]))
-                mod_D = len(tmpL)
-                if 0 == mod_D:
-                    for ii in range(2):
-                        newFtrList.append([])
-                        self.shape[layer_id][node_id] = 0
-                    continue
-                fMax, fMin = np.max(tmpL), np.min(tmpL)
-                xkArr = np.linspace(fMin, fMax, NsplitVal)
-                x_split = self.maximise_entropy_gain(fArr, xkArr, mod_D)
-                if 'none' == x_split:
-                    for ii in range(2):
-                        newFtrList.append([])
-                        self.shape[layer_id][node_id] = 0
-                    continue
-
-                self.shape[layer_id][node_id] = 1
+                splits = []
+                for ftr_id_ in range(self.n_features):
+                    tmpL = [ftrArrList[node_id][lbl_id][:, ftr_id_]
+                            for lbl_id in range(self.N_label)]
+                    flattened = [item for l1 in tmpL for item in l1]
+                    mod_D = len(flattened)
+                    if flattened:
+                        fMax, fMin = np.max(flattened), np.min(flattened)
+                        xkArr = np.linspace(fMin, fMax, NsplitVal)
+                        x_split, dS = self.maximise_entropy_gain(
+                            tmpL, xkArr, mod_D)
+                        if x_split is None:  # note: it can be 0.
+                            continue
+                        else:
+                            splits.append((ftr_id_, x_split, dS))
+                if splits:
+                    split = 1
+                    dSs = [item[2] for item in splits]
+                    maxds = max(dSs)
+                    idx = dSs.index(maxds)
+                    x_split = splits[idx][1]
+                    ftr_id = splits[idx][0]
+                else:
+                    split = 0
+                    x_split = None
+                    ftr_id = None
+                    split_features = [[], []]
+                    for f in split_features:
+                        newFtrList.append(f)
+                self.feature[layer_id][node_id] = ftr_id
+                self.shape[layer_id][node_id] = split
                 self.splitVal[layer_id][node_id] = x_split
-                print 'split val', x_split
+                if ftr_id is not None:
+                    L1, L2 = self.split_labeled_data(
+                        ftrArrList, layer_id, node_id, ftr_id)
+                    #print len(L1[0]), len(L1[1]), len(L2[0]), len(L2[1])
+                    newFtrList.append(L1)
+                    newFtrList.append(L2)
+                    self.labelVal[layer_id + 1][2 *
+                                                node_id] = self.survival_probability(L1)
+                    self.labelVal[layer_id + 1][2 * node_id +
+                                                1] = self.survival_probability(L2)
 
-                L1, L2 = self.split_labeled_data(ftrArrList,
-                                                 layer_id, node_id, ftr_id)
-                print len(L1[0]), len(L1[1]), len(L2[0]), len(L2[1])
-                newFtrList.append(L1)
-                newFtrList.append(L2)
-                self.labelVal[layer_id + 1][2 * node_id] =\
-                    self.survival_probability(L1)
-                self.labelVal[layer_id + 1][2 * node_id + 1] = \
-                    self.survival_probability(L2)
-        #print ''
-        #print 'Tree trained'
+#        print 'Fully trained'
+#        print 'layer_id, node_id, feature_id, split_val, surivival_probability'
+#        for i in range(self.depth):
+#            for jj in range(int(math.pow(2., i))):
+#                print i, jj, self.feature[i][jj], self.splitVal[i][jj],  self.labelVal[i][jj]
 
     def predict_label(self, ftrArrList):
         outArr = np.zeros((1, np.shape(ftrArrList[0])[1] + 1))
@@ -196,22 +191,15 @@ class DecisionTree:
             ftrArrList = newFtrArrList[:]
             newFtrArrList = []
             layer_id = self.shape.index(layer)
-            if ((self.depth - 1) != layer_id):
-                # last layer is output layer -> don't train
-                # if 0 == layer_id%5:
-                #    print layer_id
-                # ftr_id   = layer_id #Change this later when looking at RF
-                ftr_id = self.feature[layer_id]
             for jj in range(int(math.pow(2., layer_id))):
                 node_id = jj
+                ftr_id = self.feature[layer_id][node_id]
                 if 0 == np.shape(ftrArrList[node_id])[0]:
-                    #print 'empty', layer_id, node_id
                     newFtrArrList.append([])
                     newFtrArrList.append([])
                     continue
                 if layer_id > 0 \
                         and 0 == self.shape[layer_id][node_id]:
-                    #print 'predict', layer_id, node_id
                     p_survival = self.labelVal[layer_id][node_id]
                     p_survival = 1 if p_survival > 0.5 else 0
                     dim = np.shape(ftrArrList[node_id])[0]
@@ -226,35 +214,9 @@ class DecisionTree:
                     newFtrArrList.append([])
                     continue
 
-                #print 'split', layer_id, node_id
                 x_split = self.splitVal[layer_id][node_id]
                 L1, L2 = self.split_unlabeled_data(ftrArrList,
                                                    layer_id, node_id, ftr_id)
                 newFtrArrList += L1 + L2
 
-        #print 'labels predicted'
-        #print ''
         return outArr
-
-#N_samples = 25
-#N_ftr = 1
-#MockData = []
-#
-# for ii in range( 2 ):
-#    MockData.append( np.random.uniform( ii-.6, ii+.6, \
-#                        (N_samples, N_ftr + 1) ) )
-#    MockData[ ii ][:,1] = ii
-#
-#Data = np.arange(0.,1.,.1)
-#Data = np.reshape(Data, (10,1))
-#
-#rf =  DecisionTree( 2, 2 )
-#rf.train( [MockData] )
-#
-#print ''
-#print 'where tree is splitted: ',rf.shape
-#print 'split values: ',rf.splitVal
-#print 'survival probabilities: ',rf.labelVal
-#print ''
-#
-#print rf.predict_label( [Data] )
